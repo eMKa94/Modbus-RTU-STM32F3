@@ -58,5 +58,5 @@ And then at the end of **eMbPool** function in **mb.c** file:
     }
     '''
 
-Thank You
+Thank You.
 Maciej Kowalski
