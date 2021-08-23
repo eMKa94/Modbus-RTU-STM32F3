@@ -12,50 +12,49 @@ These functions are used in the modifications of **eMbPool** function in **mb.c*
 
 When the frame from master is received, the data direction should be changed to transmission.
 
-    '''C
-    if( xMBPortEventGet( &eEvent ) == TRUE )
+```C
+if( xMBPortEventGet( &eEvent ) == TRUE )
+{
+    switch ( eEvent )
     {
-        switch ( eEvent )
+    case EV_READY:
+        break;
+    case EV_FRAME_RECEIVED:
+        eStatus = peMBFrameReceiveCur( &ucRcvAddress, &ucMBFrame, &usLength );
+        if( eStatus == MB_ENOERR )
         {
-        case EV_READY:
-            break;
-
-        case EV_FRAME_RECEIVED:
-            eStatus = peMBFrameReceiveCur( &ucRcvAddress, &ucMBFrame, &usLength );
-            if( eStatus == MB_ENOERR )
+            /* Check if the frame is for us. If not ignore the frame. */
+            if( ( ucRcvAddress == ucMBAddress ) || ( ucRcvAddress == MB_ADDRESS_BROADCAST ) )
             {
-                /* Check if the frame is for us. If not ignore the frame. */
-                if( ( ucRcvAddress == ucMBAddress ) || ( ucRcvAddress == MB_ADDRESS_BROADCAST ) )
-                {
-                    boardRs485SetDirectionTransmit();
-                    ( void )xMBPortEventPost( EV_EXECUTE );
-                }
+                boardRs485SetDirectionTransmit();
+                ( void )xMBPortEventPost( EV_EXECUTE );
             }
-            break;
-    '''
+        }
+        break;
+```
 When the response frame was transmitted, the data direction should be set back to reception.
 Because in the STM32F3, the "Transmit register empty" interrupt (TXE) is triggered before the USART physically send the byte, software should wait few miliseconds before it changes the data direction to reception. This is done by setting a flag in **vMBPortSerialEnable** function in **mb_portserial.c** file:
 
-    '''C
-    if (xRxEnable)
-    {
-    	LL_USART_EnableIT_RXNE(USART3);
-    	rx_enable_request = 1;
-    	rxOnTimeMs = board_runtime_ms+10;
-    }
-    '''
+```C
+if (xRxEnable)
+{
+	LL_USART_EnableIT_RXNE(USART3);
+	rx_enable_request = 1;
+	rxOnTimeMs = board_runtime_ms+10;
+}
+```
 
 And then at the end of **eMbPool** function in **mb.c** file:
 
-    '''C
-    if (rx_enable_request == 1)
+```C
+if (rx_enable_request == 1)
+{
+	if (board_runtime_ms >= rxOnTimeMs)
     {
-    	if (board_runtime_ms >= rxOnTimeMs)
-        {
-            boardRs485SetDirectionReceive();
-            rx_enable_request = 0;
-        }
+        boardRs485SetDirectionReceive();
+        rx_enable_request = 0;
     }
-    '''
+}
+```
 
 Thank you.
